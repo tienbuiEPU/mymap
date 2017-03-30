@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>OpenLayer Map</title>
+	<link rel="stylesheet" href="http://openlayers.org/en/v3.15.1/css/ol.css" type="text/css">
+	<script src="http://openlayers.org/en/v3.15.1/build/ol.js" type="text/javascript"></script>
+	<script src="https://code.jquery.com/jquery-1.12.3.min.js" type="text/javascript"></script>
+	<style type="text/css">
+		body {
+			background-color: lightblue;
+		}
+		.center {
+			width: 80%;
+			margin: 5px auto;
+			background-color: white;
+			padding: 5px;
+		}
+	</style>
+</head>
+<body>
+	<div id="map" class="map center"></div>
+	<div id="button" class="center">
+		<button id="zoom-out">Zoom Out</button>
+		<button id="zoom-in">Zoom In</button>
+		<button id="fullscreen">Full Extent</button>
+	</div>
+	<script type="text/javascript">
+		var format = 'image/png';
+		var bounds = [205758.5538999997, 559690.2997999992,
+                    1828346.1635999996, 2587082.3366];
+        //var bounds = [851471.49207, 206944.28163, 133156.9484, 1870305.38666];
+		var mousePositionControl = new ol.control.MousePosition({
+			className: 'custom-mouse-position',
+			target: document.getElementById('location'),
+			coordinateFormat: ol.coordinate.createStringXY(5),
+			undefinedHTML: '&nbsp'
+		});
+		var tiled = new ol.layer.Tile({
+			visible: true,
+			source: new ol.source.TileWMS({
+				url: 'http://42.112.29.41:8585/geoserver/UDA/wms',
+				params: {
+					'FORMAT': format,
+					'VERSION': '1.1.1',
+					tiled: true,
+					STYLES: '',
+					LAYERS: 'UDA:PROVINCECHECKLABEL'
+				}
+			})
+		});
+		var projection = new ol.proj.Projection({
+			code: 'EPSG:3405',
+			units: 'm',
+			axisOrientation: 'neu'
+		});
+		
+		//Zoom Out 
+		// $('#zoom-out').click(function() {
+  //     		var view = map.getView();
+  //     		var zoom = view.getZoom();
+  //     		view.setZoom(zoom - 1);
+  //     	})
+
+      	//Zoom In
+      	// $('#zoom-in').click(function() {
+      	// 	var view = map.getView();
+      	// 	var zoom = view.getZoom();
+      	// 	view.setZoom(zoom + 1);
+      	// });
+
+      	// $('#fullscreen').click(function() {
+      	// 	// var control = new ol.control.ZoomToExtent({
+       //  //             extent: [205758.5538999997, 559690.2997999992,
+       //  //             1828346.1635999996, 2587082.3366],
+       //  //             attribution: true
+       //  //         });
+      	// // 	var fullscreen = new ol.control.FullScreen();
+      	//  	// map.addControl(control);
+      	//  	let extent = [205758.5538999997, 559690.2997999992,
+       //              1828346.1635999996, 2587082.3366];
+       //       map.getView().fit(extent, map.getSize());
+      	// });
+
+      	ol.control.NavigationHistory = function (opt_options) {
+      		var options = opt_options || {};
+      		var _this = this;
+      		var controlDiv = document.createElement('div');
+      		controlDiv.className = options.class || 'ol-unselectable ol-control';
+
+      		//Back Button
+      		var backButton = document.createElement('button');
+      		backButton.className = 'ol-navhist-back';
+      		backButton.textContent = options.backButtonText || 	'Back';
+      		backButton.title = options.backButtonTipLabel || 'Previous View';
+      		backButton.addEventListener('click', function (evt) {
+      			var historyArray = _this.get('history');
+      			var currIndex = _this.get('index');
+      			if (currIndex > 0) {
+      				currIndex -= 1;
+      				_this.setProperties({
+      					shouldSave: false,
+      					index: currIndex
+      				});
+      				_this.getMap().getView().setProperties(historyArray[currIndex]);
+      			}
+      		});
+      		backButton.disabled = true;
+      		controlDiv.appendChild(backButton);
+
+      		//Next button
+      		var nextButton = document.createElement('button');
+      		nextButton.className = 'ol-navhist-next';
+      		nextButton.textContent = options.nextButtonText || 'Next';
+      		nextButton.title = options.nextButtonTipLabel || 'Next View';
+      		nextButton.addEventListener('click', function (evt) {
+      			var historyArray = _this.get('history');
+      			console.log(historyArray);
+      			var currIndex = _this.get('index');
+      			if (currIndex < historyArray.length - 1) {
+      				currIndex += 1;
+      				_this.setProperties({
+      					shouldSave: false,
+      					index: currIndex
+      				});
+      				_this.getMap().getView().setProperties(historyArray[currIndex]);
+      			}
+      			nextButton.disabled = true;
+      			controlDiv.appendChild(nextButton);
+
+      			ol.control.Control.call(this, {
+      				element: controlDiv,
+      				target: options.target
+      			});
+
+      			this.setProperties({
+      				history: [],
+      				index: -1,
+      				maxSize: options.maxSize || 50,
+      				eventId: null,
+      				shouldSave: true
+      			});
+
+      			this.on('change:index', function () {
+      				if (this.get('index') === 0) {
+      					backButton.disabled = true;
+      				} else {
+      					backButton.disabled = false;
+      				}
+      				if (this.get('history').length - 1 === this.get('index')) {
+      					nextButton.disabled = true;
+      				} else {
+      					nextButton.disabled	= false;
+      				}
+      			});
+      		});
+      	};
+
+      	ol.inherits(ol.control.NavigationHistory, ol.control.Control);
+      	ol.control.NavigationHistory.prototype.setMap = function (map) {
+      		console.log("Setmap");
+      		// Nó đang bị lỗi khi gọi cái hàm này
+      		ol.control.Control.prototype.setMap.call(this, map);
+      		console.log("called Setmap");
+      		if (map === null) {
+      			ol.Observable.unByKey(this.get('eventId'));
+
+      		} else {
+      			this.set('eventId', map.on('moveend', function (evt) {
+      				if (this.get('shouldSave')) {
+      					var view = map.getView();
+      					var viewstatus = {
+      						center: view.getCenter(),
+      						resolution: view.getResolution(),
+      						rotation: view.getRotation()
+      					};
+      					var historyArray = this.get('history');
+      					var currIndex = this.get('index');
+      					historyArray.splice(currIndex + 1, historyArray.length - currIndex -1);
+      					if (historyArray.length === this.get('maxSize')) {
+      						historyArray.splice(0, 1);
+      					} else {
+      						currIndex +=1;
+      					}
+      					historyArray.push(viewstatus);
+      					this.set('index', currIndex);
+      				} else {
+      					this.set('shouldSave', true);
+      				}
+      			}, this));
+      		}
+      	};
+
+      	var map = new ol.Map({
+			controls: ol.control.defaults({
+				attribution: false
+			}).extend(
+				[mousePositionControl]
+				),
+			target: 'map',
+			layers: [
+				tiled
+			],
+			view: new ol.View({
+				projection: projection,
+				zoom: 5
+			})
+		});
+		var historyControl = new ol.control.NavigationHistory();
+		map.addControl(historyControl);
+		map.getView().fit(bounds,map.getSize());
+	</script>
+</body>
+</html>
